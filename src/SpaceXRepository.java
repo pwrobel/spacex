@@ -2,6 +2,7 @@ import enums.MissionStatus;
 import enums.RocketStatus;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class SpaceXRepository {
     private final Map<String, Rocket> rockets = new HashMap<>();
@@ -32,6 +33,12 @@ public class SpaceXRepository {
 
         rocket.setStatus(RocketStatus.IN_SPACE);
         updateMissionStatus(mission);
+    }
+
+    public void assignRocketsToMission(String missionId, Set<String> rocketIds) {
+        for (String rocketId : rocketIds) {
+            assignRocketToMission(rocketId, missionId);
+        }
     }
 
     private void updateMissionStatus(Mission mission) {
@@ -80,5 +87,30 @@ public class SpaceXRepository {
             }
         }
         missionToRocketIds.remove(missionId);
+    }
+
+    public String getSummary() {
+        Map<MissionStatus, Integer> statusOrder = Map.of(
+                MissionStatus.IN_PROGRESS, 0, MissionStatus.PENDING, 1,
+                MissionStatus.ENDED, 2, MissionStatus.SCHEDULED, 3
+        );
+
+        List<Mission> sortedMissions = missions.values().stream()
+                .sorted(Comparator.comparing((Mission m) -> statusOrder.get(m.getStatus())).thenComparing(Mission::getName))
+                .collect(Collectors.toList());
+
+        StringBuilder summary = new StringBuilder();
+        for (Mission mission : sortedMissions) {
+            Set<String> assignedRocketIds = missionToRocketIds.getOrDefault(mission.getName(), Collections.emptySet());
+            summary.append(String.format("• %s – %s – Dragons: %d%n",
+                    mission.getName(), mission.getStatus(), assignedRocketIds.size()));
+
+            assignedRocketIds.stream()
+                    .map(rockets::get)
+                    .sorted(Comparator.comparing(Rocket::getName))
+                    .forEach(rocket -> summary.append(String.format("\t- %s – %s%n",
+                            rocket.getName(), rocket.getStatus())));
+        }
+        return summary.toString();
     }
 }
